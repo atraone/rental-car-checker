@@ -31,7 +31,12 @@ export default function SectionListScreen() {
     if (sectionsParam) {
       try {
         const parsed = JSON.parse(sectionsParam) as string[];
-        setSections(parsed.map(name => ({ name, completed: false })));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSections(parsed.map(name => ({ name: String(name), completed: false })));
+        } else {
+          console.error('Invalid sections array');
+          router.back();
+        }
       } catch (error) {
         console.error('Failed to parse sections:', error);
         router.back();
