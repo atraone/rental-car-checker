@@ -55,6 +55,7 @@ export default function CaptureInitialScreen() {
       });
 
       // Parse the JSON response
+      // The response may be double-encoded: {"text":"{\"isVehicle\": false, \"sections\": []}"}
       let sections: string[] = [];
       let isVehicle = true;
       
@@ -63,31 +64,48 @@ export default function CaptureInitialScreen() {
         let cleaned = analysisText.trim();
         cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         
-        // Try to extract JSON object from the response
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          
+        // Try to parse - it might be a JSON string that needs to be parsed again
+        let parsed: any;
+        
+        // First, try to parse as JSON (in case it's double-encoded)
+        try {
+          parsed = JSON.parse(cleaned);
+          // If the result is a string, parse it again (double-encoded case)
+          if (typeof parsed === 'string') {
+            parsed = JSON.parse(parsed);
+          }
+          // If the result has a 'text' property, extract and parse that
+          if (parsed && typeof parsed === 'object' && parsed.text && typeof parsed.text === 'string') {
+            parsed = JSON.parse(parsed.text);
+          }
+        } catch (e) {
+          // If that fails, try to extract JSON object from the string
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+            // Check if it's still a string (double-encoded)
+            if (typeof parsed === 'string') {
+              parsed = JSON.parse(parsed);
+            }
+          } else {
+            throw new Error('No JSON found in response');
+          }
+        }
+        
+        // Now we should have the actual parsed object
+        if (parsed && typeof parsed === 'object') {
           // Check if it's a vehicle
           if (parsed.isVehicle === false) {
             isVehicle = false;
             sections = [];
           } else if (parsed.isVehicle === true && Array.isArray(parsed.sections)) {
             sections = parsed.sections;
+            isVehicle = true;
           } else {
-            throw new Error('Invalid response format');
+            throw new Error('Invalid response format - missing isVehicle or sections');
           }
         } else {
-          // Fallback: try parsing the whole cleaned response
-          const parsed = JSON.parse(cleaned);
-          if (parsed.isVehicle === false) {
-            isVehicle = false;
-            sections = [];
-          } else if (parsed.isVehicle === true && Array.isArray(parsed.sections)) {
-            sections = parsed.sections;
-          } else {
-            throw new Error('Invalid response format');
-          }
+          throw new Error('Response is not a valid object');
         }
         
         // Validate sections array
@@ -95,11 +113,12 @@ export default function CaptureInitialScreen() {
           throw new Error('Invalid sections array');
         }
       } catch (error) {
-        console.error('Failed to parse sections:', error, 'Response:', analysisText);
+        console.error('Failed to parse sections:', error, 'Raw response:', analysisText);
         // If parsing fails, check if response indicates "not a vehicle"
         const lowerText = analysisText.toLowerCase();
         if (lowerText.includes("don't see") || lowerText.includes("not a vehicle") || 
-            lowerText.includes("not a car") || lowerText.includes("no vehicle")) {
+            lowerText.includes("not a car") || lowerText.includes("no vehicle") ||
+            lowerText.includes('"isvehicle": false') || lowerText.includes('"isvehicle":false')) {
           isVehicle = false;
           sections = [];
         } else {
@@ -111,14 +130,19 @@ export default function CaptureInitialScreen() {
       return { sections, photoDataUri, isVehicle };
     },
     onSuccess: (result) => {
+      setIsAnalyzing(false);
+      
       if (!result.isVehicle) {
         Alert.alert(
           'Not a Vehicle',
-          'The photo does not appear to show a vehicle. Please take a photo of the rental vehicle.',
+          'The photo does not appear to show a vehicle. Please take a photo of the actual rental car.',
           [
             {
-              text: 'OK',
-              onPress: () => setIsAnalyzing(false),
+              text: 'Retake Photo',
+              onPress: () => {
+                // User can take another photo
+                setIsAnalyzing(false);
+              },
             },
           ]
         );
