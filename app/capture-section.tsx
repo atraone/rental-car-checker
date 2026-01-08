@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -58,6 +59,8 @@ export default function CaptureSectionScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [capturedPhotos, setCapturedPhotos] = useState<SectionPhoto[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [photoTaken, setPhotoTaken] = useState(false);
+  const [currentPhotoUri, setCurrentPhotoUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (sectionsParam) {
@@ -73,6 +76,12 @@ export default function CaptureSectionScreen() {
       setCurrentIndex(parseInt(currentIndexParam, 10));
     }
   }, [sectionsParam, currentIndexParam, router]);
+
+  // Reset photo taken state when moving to a new section
+  useEffect(() => {
+    setPhotoTaken(false);
+    setCurrentPhotoUri(null);
+  }, [currentIndex]);
 
   const analysisMutation = useMutation({
     mutationFn: async ({ photoBase64, photoUri, photoMime, sectionName }: {
@@ -255,6 +264,9 @@ export default function CaptureSectionScreen() {
         };
         setCapturedPhotos(prev => [...prev, newPhoto]);
         
+        // Hide camera and show photo preview
+        setPhotoTaken(true);
+        setCurrentPhotoUri(dataUri);
         setIsAnalyzing(true);
         
         // Start async analysis (non-blocking) - analysis will update the photo when complete
@@ -265,16 +277,8 @@ export default function CaptureSectionScreen() {
           sectionName: sections[currentIndex],
         });
 
-        // Move to next section immediately (don't wait for analysis)
+        // Analysis completes asynchronously, but we don't wait for it
         setIsAnalyzing(false);
-        if (currentIndex < sections.length - 1) {
-          setTimeout(() => {
-            setCurrentIndex(currentIndex + 1);
-          }, 500); // Small delay for UX
-        } else {
-          // Last photo - finish after a delay to allow analysis to start
-          finishCapture();
-        }
       }
     } catch (error) {
       console.error('Capture error:', error);
@@ -309,6 +313,22 @@ export default function CaptureSectionScreen() {
 
   const currentSection = sections[currentIndex];
   const progress = ((currentIndex + 1) / sections.length) * 100;
+  const hasNextSection = currentIndex < sections.length - 1;
+
+  const handleNextSection = () => {
+    if (hasNextSection) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      finishCapture();
+    }
+  };
+
+  const handleRetakePhoto = () => {
+    setPhotoTaken(false);
+    setCurrentPhotoUri(null);
+    // Remove the photo from capturedPhotos if it exists
+    setCapturedPhotos(prev => prev.filter(p => p.section !== currentSection));
+  };
 
   return (
     <View style={styles.container}>
@@ -330,20 +350,35 @@ export default function CaptureSectionScreen() {
         </View>
       </SafeAreaView>
 
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing="back"
-        mode="picture"
-      >
-        <View style={styles.overlay}>
-          <View style={styles.instructionContainer}>
-            <Text style={styles.instructionText}>
-              Capture: {currentSection}
-            </Text>
+      {!photoTaken ? (
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing="back"
+          mode="picture"
+        >
+          <View style={styles.overlay}>
+            <View style={styles.instructionContainer}>
+              <Text style={styles.sectionTitle}>{currentSection}</Text>
+              <Text style={styles.instructionText}>
+                Position the {currentSection.toLowerCase()} in frame
+              </Text>
+            </View>
+          </View>
+        </CameraView>
+      ) : (
+        <View style={styles.photoPreviewContainer}>
+          {currentPhotoUri && (
+            <Image source={{ uri: currentPhotoUri }} style={styles.photoPreview} />
+          )}
+          <View style={styles.photoPreviewOverlay}>
+            <View style={styles.previewInstructionContainer}>
+              <Text style={styles.previewTitle}>Photo Captured</Text>
+              <Text style={styles.previewSubtitle}>{currentSection}</Text>
+            </View>
           </View>
         </View>
-      </CameraView>
+      )}
 
       <SafeAreaView edges={['bottom']} style={styles.bottomArea}>
         <View style={styles.captureContainer}>
@@ -351,6 +386,23 @@ export default function CaptureSectionScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4A90A4" />
               <Text style={styles.loadingText}>Analyzing...</Text>
+            </View>
+          ) : photoTaken ? (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.retakeButton}
+                onPress={handleRetakePhoto}
+              >
+                <Text style={styles.retakeButtonText}>Retake</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.nextButton}
+                onPress={handleNextSection}
+              >
+                <Text style={styles.nextButtonText}>
+                  {hasNextSection ? 'Next Section' : 'Finish'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.buttonRow}>
@@ -490,6 +542,36 @@ const styles = StyleSheet.create({
   },
   buttonSpacer: {
     width: 80,
+  },
+  retakeButton: {
+    backgroundColor: '#2a5a6c',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+    flex: 1,
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  retakeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  nextButton: {
+    backgroundColor: '#4A90A4',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    flex: 1,
+    marginLeft: 10,
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700' as const,
   },
   loadingContainer: {
     alignItems: 'center',
