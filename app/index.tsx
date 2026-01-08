@@ -256,4 +256,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#4A90A4',
+    fontSize: 16,
+    marginTop: 16,
+  },
 });
