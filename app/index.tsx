@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,7 +16,7 @@ import { useHistory } from '@/contexts/HistoryContext';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { history } = useHistory();
+  const { history, isLoading } = useHistory();
 
   const formatDate = (dateText: string) => {
     // dateText is already formatted, but we can extract just date and time for display
@@ -38,7 +39,11 @@ export default function HomeScreen() {
   };
 
   const renderHistoryItem = ({ item }: { item: typeof history[0] }) => {
-    const { date, time } = formatDate(item.dateText);
+    if (!item || !item.mainPhoto) {
+      return null;
+    }
+    
+    const { date, time } = formatDate(item.dateText || '');
     return (
       <TouchableOpacity
         style={styles.historyItem}
@@ -50,7 +55,7 @@ export default function HomeScreen() {
           <Text style={styles.historyDate}>{date}</Text>
           <Text style={styles.historyTime}>{time}</Text>
           <Text style={styles.historySections}>
-            {item.sectionPhotos.length} sections documented
+            {item.sectionPhotos?.length || 0} sections documented
           </Text>
         </View>
       </TouchableOpacity>
@@ -80,7 +85,11 @@ export default function HomeScreen() {
           <History size={20} color="#4A90A4" />
           <Text style={styles.historyTitle}>Inspection History</Text>
         </View>
-        {history.length === 0 ? (
+        {isLoading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Loading...</Text>
+          </View>
+        ) : history.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No inspections yet</Text>
             <Text style={styles.emptySubtext}>
@@ -89,7 +98,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <FlatList
-            data={history}
+            data={history.filter(item => item && item.mainPhoto)}
             renderItem={renderHistoryItem}
             keyExtractor={(item) => item.id}
             scrollEnabled={true}
