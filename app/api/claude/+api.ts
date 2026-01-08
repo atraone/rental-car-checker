@@ -1,4 +1,20 @@
+/**
+ * WARNING: This Expo Router API route is ONLY for local development.
+ * 
+ * In production, all API calls MUST go through the backend at https://atra.one
+ * to ensure API keys are never exposed to the frontend.
+ * 
+ * The frontend services (services/claude.ts) use getApiBaseUrl() which
+ * automatically routes to atra.one in production builds.
+ */
 export async function POST(req: Request) {
+  // Block direct API calls in production - force use of backend
+  if (process.env.NODE_ENV === 'production' || process.env.EXPO_PUBLIC_ENV === 'production') {
+    return Response.json({ 
+      error: 'Direct API calls are disabled in production. Use the backend at https://atra.one' 
+    }, { status: 403 });
+  }
+
   try {
     const { promptText, imageBase64, imageMime } = await req.json();
 

@@ -1,7 +1,11 @@
 /**
  * Kie.ai image editing service
  * Uses nano banana model for image editing
- * Calls backend proxy endpoint to avoid CORS issues
+ * 
+ * IMPORTANT: In production, this ALWAYS calls the backend at https://atra.one
+ * to ensure API keys are never exposed to the frontend.
+ * 
+ * The backend proxy endpoint handles all external API calls securely.
  */
 
 export interface KieImageInput {

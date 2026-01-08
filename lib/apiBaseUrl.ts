@@ -4,9 +4,12 @@ import Constants from 'expo-constants';
 /**
  * Get the API base URL for the current environment
  * 
+ * IMPORTANT: In production, ALL API calls MUST go through the backend at atra.one
+ * to ensure API keys are never exposed to the frontend.
+ * 
  * Priority:
  * 1. EXPO_PUBLIC_API_BASE_URL (explicit override)
- * 2. Production: https://atra.one
+ * 2. Production: https://atra.one (ALWAYS - no exceptions)
  * 3. Web dev: http://localhost:3000
  * 4. Android emulator: http://10.0.2.2:3000
  * 5. Physical device: http://localhost:3000 (with warning - should use LAN IP)
@@ -17,8 +20,14 @@ export function getApiBaseUrl(): string {
     return process.env.EXPO_PUBLIC_API_BASE_URL;
   }
 
-  // Production build uses atra.one
-  if (process.env.NODE_ENV === 'production' || __DEV__ === false) {
+  // Production build ALWAYS uses atra.one backend (API keys must never be in frontend)
+  // Check multiple production indicators to be safe
+  const isProduction = 
+    process.env.NODE_ENV === 'production' || 
+    __DEV__ === false ||
+    process.env.EXPO_PUBLIC_ENV === 'production';
+  
+  if (isProduction) {
     return 'https://atra.one';
   }
 
