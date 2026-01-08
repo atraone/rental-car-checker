@@ -19,6 +19,7 @@ export default function HomeScreen() {
   const { history, isLoading } = useHistory();
 
   const formatDate = (dateText: string) => {
+    if (!dateText) return { date: '', time: '' };
     // dateText is already formatted, but we can extract just date and time for display
     const parts = dateText.split(',');
     if (parts.length >= 2) {
@@ -39,27 +40,36 @@ export default function HomeScreen() {
   };
 
   const renderHistoryItem = ({ item }: { item: typeof history[0] }) => {
-    if (!item || !item.mainPhoto) {
+    try {
+      if (!item || !item.mainPhoto || !item.id) {
+        return null;
+      }
+      
+      const { date, time } = formatDate(item.dateText || '');
+      return (
+        <TouchableOpacity
+          style={styles.historyItem}
+          onPress={() => handleHistoryItemPress(item.id)}
+          activeOpacity={0.7}
+        >
+          <Image 
+            source={{ uri: item.mainPhoto }} 
+            style={styles.historyThumbnail}
+            onError={() => console.log('Failed to load image:', item.mainPhoto)}
+          />
+          <View style={styles.historyInfo}>
+            <Text style={styles.historyDate}>{date}</Text>
+            <Text style={styles.historyTime}>{time}</Text>
+            <Text style={styles.historySections}>
+              {item.sectionPhotos?.length || 0} sections documented
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    } catch (error) {
+      console.error('Error rendering history item:', error);
       return null;
     }
-    
-    const { date, time } = formatDate(item.dateText || '');
-    return (
-      <TouchableOpacity
-        style={styles.historyItem}
-        onPress={() => handleHistoryItemPress(item.id)}
-        activeOpacity={0.7}
-      >
-        <Image source={{ uri: item.mainPhoto }} style={styles.historyThumbnail} />
-        <View style={styles.historyInfo}>
-          <Text style={styles.historyDate}>{date}</Text>
-          <Text style={styles.historyTime}>{time}</Text>
-          <Text style={styles.historySections}>
-            {item.sectionPhotos?.length || 0} sections documented
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
   };
 
   return (
