@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+import { syncHistoryWithSupabase } from '@/services/supabase';
 
 export interface VehicleSectionPhoto {
   section: string;

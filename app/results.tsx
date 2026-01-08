@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { X, Save, Plus } from 'lucide-react-native';
 import { useHistory } from '@/contexts/HistoryContext';
 import { VehicleSectionPhoto } from '@/contexts/HistoryContext';
+import { storeInspectionToSupabase } from '@/services/supabase';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 
@@ -132,10 +133,25 @@ export default function ResultsScreen() {
         finalMainPhoto = mainPhotoUri;
       }
 
-      await addToHistory({
+      // Save to local history
+      const historyId = await addToHistory({
         mainPhoto: finalMainPhoto,
         sectionPhotos: sectionPhotos,
         allDamageNotes: combinedNotes,
+      });
+
+      // Save to Supabase (async, non-blocking)
+      storeInspectionToSupabase({
+        mainPhoto: finalMainPhoto,
+        sectionPhotos: sectionPhotos,
+        allDamageNotes: combinedNotes,
+      }).then(result => {
+        if (result.success) {
+          console.log('Inspection saved to Supabase:', result.inspectionId);
+        } else {
+          console.error('Failed to save to Supabase:', result.error);
+          // Don't show error to user - local save succeeded
+        }
       });
 
       Alert.alert('Success', 'Inspection saved to history', [

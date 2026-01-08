@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,23 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { Car, History } from 'lucide-react-native';
 import { useHistory } from '@/contexts/HistoryContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const segments = useSegments();
   const { history, isLoading } = useHistory();
+  const { canAccessApp, isLoading: authLoading } = useAuth();
+
+  // Gate access - redirect to auth if not subscribed
+  useEffect(() => {
+    if (!authLoading && !canAccessApp) {
+      router.replace('/auth');
+    }
+  }, [canAccessApp, authLoading, router]);
 
   const formatDate = (dateText: string) => {
     if (!dateText) return { date: '', time: '' };

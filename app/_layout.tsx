@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HistoryProvider } from "@/contexts/HistoryContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { PhoneMockup } from "@/components/PhoneMockup";
 
 SplashScreen.preventAutoHideAsync();
@@ -14,6 +15,7 @@ const queryClient = new QueryClient();
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="auth" />
       <Stack.Screen name="index" />
       <Stack.Screen name="capture-initial" />
       <Stack.Screen name="section-list" />
@@ -128,11 +130,13 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <HistoryProvider>
-          <PhoneMockup>
-            <RootLayoutNav />
-          </PhoneMockup>
-        </HistoryProvider>
+        <AuthProvider>
+          <HistoryProvider>
+            <PhoneMockup>
+              <RootLayoutNav />
+            </PhoneMockup>
+          </HistoryProvider>
+        </AuthProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );
