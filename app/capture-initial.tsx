@@ -134,17 +134,19 @@ export default function CaptureInitialScreen() {
       
       if (!result.isVehicle) {
         Alert.alert(
-          'Not a Vehicle',
-          'The photo does not appear to show a vehicle. Please take a photo of the actual rental car.',
+          'Not a Vehicle Detected',
+          'The photo does not appear to show a vehicle. Please take a clear photo of the actual rental car.',
           [
             {
               text: 'Retake Photo',
+              style: 'default',
               onPress: () => {
-                // User can take another photo
+                // User stays on the camera screen and can retake
                 setIsAnalyzing(false);
               },
             },
-          ]
+          ],
+          { cancelable: false }
         );
         return;
       }
@@ -152,13 +154,16 @@ export default function CaptureInitialScreen() {
       if (result.sections.length === 0) {
         Alert.alert(
           'No Sections Found',
-          'Could not identify vehicle sections. Please try again.',
+          'Could not identify vehicle sections. Please try taking another photo.',
           [
             {
-              text: 'OK',
-              onPress: () => setIsAnalyzing(false),
+              text: 'Retake Photo',
+              onPress: () => {
+                setIsAnalyzing(false);
+              },
             },
-          ]
+          ],
+          { cancelable: false }
         );
         return;
       }
