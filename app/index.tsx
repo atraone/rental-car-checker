@@ -276,4 +276,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
   },
+  counterClaimButton: {
+    backgroundColor: '#2a5a6c',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#4A90A4',
+  },
+  counterClaimButtonText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
 });

@@ -363,9 +363,9 @@ export default function CounterClaimScreen() {
 
             {/* PDF Viewer */}
             <View style={styles.pdfContainer}>
-              {Platform.OS === 'web' ? (
+              {Platform.OS === 'web' && generatedPDFUri ? (
                 <iframe
-                  src={generatedPDFUri || ''}
+                  src={generatedPDFUri}
                   style={styles.pdfFrame}
                   title="Counter Claim Letter"
                 />
