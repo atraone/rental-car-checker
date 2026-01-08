@@ -32,11 +32,64 @@ export const [HistoryProvider, useHistory] = createContextHook(() => {
     loadHistory();
   }, []);
 
+  // Sync with Supabase on mount and periodically
+  useEffect(() => {
+    if (isLoading) return; // Wait for initial load
+
+    const syncHistory = async () => {
+      try {
+        const synced = await syncHistoryWithSupabase(history);
+        // Only update if there are actual differences
+        const currentIds = new Set(history.map(h => h.id));
+        const syncedIds = new Set(synced.map(h => h.id));
+        const hasChanges = 
+          synced.length !== history.length ||
+          [...syncedIds].some(id => !currentIds.has(id)) ||
+          [...currentIds].some(id => !syncedIds.has(id));
+        
+        if (hasChanges) {
+          setHistory(synced);
+          saveHistory(synced);
+        }
+      } catch (error) {
+        console.error('Error syncing history with Supabase:', error);
+        // Don't update history on sync error - keep local version
+      }
+    };
+
+    // Initial sync after a short delay
+    const timeout = setTimeout(syncHistory, 2000);
+    
+    // Periodic sync every 30 seconds
+    const interval = setInterval(syncHistory, 30000);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [history, isLoading]);
+
   const loadHistory = async () => {
     try {
       const stored = await AsyncStorage.getItem(HISTORY_STORAGE_KEY);
+      let loadedHistory: HistoryItem[] = [];
+      
       if (stored) {
-        setHistory(JSON.parse(stored));
+        loadedHistory = JSON.parse(stored);
+      }
+      
+      // Sync with Supabase after loading local history
+      try {
+        const synced = await syncHistoryWithSupabase(loadedHistory);
+        setHistory(synced);
+        // Save synced version
+        if (synced.length !== loadedHistory.length) {
+          saveHistory(synced);
+        }
+      } catch (syncError) {
+        // If sync fails, use local history
+        console.error('Sync failed on load, using local history:', syncError);
+        setHistory(loadedHistory);
       }
     } catch (error) {
       console.log('Failed to load history:', error);
