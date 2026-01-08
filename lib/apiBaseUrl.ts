@@ -1,6 +1,3 @@
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-
 /**
  * Get the API base URL for the current environment
  * 
