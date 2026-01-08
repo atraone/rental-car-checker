@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useSegments } from 'expo-router';
-import { Car, History } from 'lucide-react-native';
+import { Car, History, FileText } from 'lucide-react-native';
 import { useHistory } from '@/contexts/HistoryContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -111,6 +111,15 @@ export default function HomeScreen() {
           <Car size={48} color="#1a4a5c" />
           <Text style={styles.startButtonText}>Start Inspection</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.counterClaimButton}
+          onPress={() => router.push('/counter-claim')}
+          activeOpacity={0.8}
+        >
+          <FileText size={24} color="#FFFFFF" />
+          <Text style={styles.counterClaimButtonText}>Dispute Damage Claim</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.historySection}>
@@ -170,6 +179,7 @@ const styles = StyleSheet.create({
   startContainer: {
     paddingHorizontal: 20,
     marginBottom: 32,
+    gap: 16,
   },
   startButton: {
     backgroundColor: '#4A90A4',

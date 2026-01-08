@@ -21,6 +21,7 @@ function RootLayoutNav() {
       <Stack.Screen name="section-list" />
       <Stack.Screen name="capture-section" />
       <Stack.Screen name="results" />
+      <Stack.Screen name="counter-claim" />
       <Stack.Screen 
         name="privacy-policy" 
         options={{ 
