@@ -25,8 +25,21 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!authLoading && !canAccessApp) {
       router.replace('/auth');
+      return;
     }
   }, [canAccessApp, authLoading, router]);
+
+  // Show loading while checking auth
+  if (authLoading || !canAccessApp) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A90A4" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const formatDate = (dateText: string) => {
     if (!dateText) return { date: '', time: '' };

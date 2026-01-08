@@ -49,7 +49,24 @@ export const [HistoryProvider, useHistory] = createContextHook(() => {
         
         if (hasChanges) {
           setHistory(synced);
-          saveHistory(synced);
+          // Save synced history
+          try {
+            const itemsToStore = synced.map(item => ({
+              ...item,
+              mainPhoto: Platform.OS === 'web' && item.mainPhoto?.startsWith('data:')
+                ? 'data:image/jpeg;base64,[STORED]'
+                : item.mainPhoto,
+              sectionPhotos: item.sectionPhotos.map(sp => ({
+                ...sp,
+                photoUri: Platform.OS === 'web' && sp.photoUri?.startsWith('data:')
+                  ? 'data:image/jpeg;base64,[STORED]'
+                  : sp.photoUri,
+              })),
+            }));
+            await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(itemsToStore));
+          } catch (saveError) {
+            console.error('Error saving synced history:', saveError);
+          }
         }
       } catch (error) {
         console.error('Error syncing history with Supabase:', error);
