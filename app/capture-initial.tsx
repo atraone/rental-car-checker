@@ -14,19 +14,26 @@ import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { analyzeWithClaude } from '@/services/claude';
 
-const INITIAL_PHOTO_PROMPT = `You are a vehicle inspection assistant. Analyze this photo of a rental vehicle.
+const INITIAL_PHOTO_PROMPT = `You are a vehicle inspection assistant. Analyze this photo to determine if it shows a rental vehicle and identify which sections need to be documented.
 
-The user has taken a photo of their entire rental vehicle. Your task is to identify which sections of the vehicle need to be documented with individual photos.
+IMPORTANT: You MUST return a valid JSON object in this exact format:
+{
+  "isVehicle": true or false,
+  "sections": ["section1", "section2", ...] or []
+}
 
-Return ONLY a JSON array of strings, where each string is a section name. The sections should be:
-- Broad and categorical (not too specific)
-- Cover all major areas of the vehicle that need inspection
-- Typical sections include: "Front", "Back", "Driver Side", "Passenger Side", "Wheels", "Interior Front", "Interior Back"
+Rules:
+1. If the image does NOT show a vehicle (e.g., shows a person, animal, landscape, or other non-vehicle object), set "isVehicle" to false and "sections" to an empty array.
+2. If the image DOES show a vehicle, set "isVehicle" to true and provide a JSON array of section names in a natural walk-around sequence.
+3. Arrange sections in a logical order for photographing (e.g., Front → Driver Side → Back → Passenger Side → Front Wheel → Driver Rear Wheel → Passenger Front Wheel → Passenger Rear Wheel → Interior Front → Interior Back).
+4. Sections should be broad categories covering all major areas: Front, Back, Driver Side, Passenger Side, Wheels (or individual wheels), Interior Front, Interior Back, etc.
+5. Return ONLY the JSON object, no markdown, no code blocks, no additional text.
 
-Example format:
-["Front", "Back", "Driver Side", "Passenger Side", "Wheels", "Interior Front", "Interior Back"]
+Example for a vehicle:
+{"isVehicle": true, "sections": ["Front", "Driver Side", "Back", "Passenger Side", "Front Wheels", "Rear Wheels", "Interior Front", "Interior Back"]}
 
-Return ONLY the JSON array, no other text.`;
+Example for non-vehicle:
+{"isVehicle": false, "sections": []}`;
 
 export default function CaptureInitialScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -40,42 +47,98 @@ export default function CaptureInitialScreen() {
       photoUri: string; 
       photoMime: string;
       photoDataUri: string;
-    }) => {
+    }): Promise<{ sections: string[]; photoDataUri: string; isVehicle: boolean }> => {
       const analysisText = await analyzeWithClaude({
         promptText: INITIAL_PHOTO_PROMPT,
         imageBase64: photoBase64,
         imageMime: photoMime,
       });
 
-      // Parse the JSON array from the response
+      // Parse the JSON response
       let sections: string[] = [];
+      let isVehicle = true;
+      
       try {
         // Remove markdown code blocks if present
         let cleaned = analysisText.trim();
         cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         
-        // Try to extract JSON array from the response
-        const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+        // Try to extract JSON object from the response
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          sections = JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]);
+          
+          // Check if it's a vehicle
+          if (parsed.isVehicle === false) {
+            isVehicle = false;
+            sections = [];
+          } else if (parsed.isVehicle === true && Array.isArray(parsed.sections)) {
+            sections = parsed.sections;
+          } else {
+            throw new Error('Invalid response format');
+          }
         } else {
           // Fallback: try parsing the whole cleaned response
-          sections = JSON.parse(cleaned);
+          const parsed = JSON.parse(cleaned);
+          if (parsed.isVehicle === false) {
+            isVehicle = false;
+            sections = [];
+          } else if (parsed.isVehicle === true && Array.isArray(parsed.sections)) {
+            sections = parsed.sections;
+          } else {
+            throw new Error('Invalid response format');
+          }
         }
         
         // Validate sections array
-        if (!Array.isArray(sections) || sections.length === 0) {
+        if (isVehicle && (!Array.isArray(sections) || sections.length === 0)) {
           throw new Error('Invalid sections array');
         }
       } catch (error) {
-        console.error('Failed to parse sections:', error);
-        // Fallback to default sections
-        sections = ['Front', 'Back', 'Driver Side', 'Passenger Side', 'Wheels', 'Interior Front', 'Interior Back'];
+        console.error('Failed to parse sections:', error, 'Response:', analysisText);
+        // If parsing fails, check if response indicates "not a vehicle"
+        const lowerText = analysisText.toLowerCase();
+        if (lowerText.includes("don't see") || lowerText.includes("not a vehicle") || 
+            lowerText.includes("not a car") || lowerText.includes("no vehicle")) {
+          isVehicle = false;
+          sections = [];
+        } else {
+          // Fallback to default sections only if we can't determine it's not a vehicle
+          sections = ['Front', 'Back', 'Driver Side', 'Passenger Side', 'Wheels', 'Interior Front', 'Interior Back'];
+        }
       }
 
-      return { sections, photoDataUri };
+      return { sections, photoDataUri, isVehicle };
     },
     onSuccess: (result) => {
+      if (!result.isVehicle) {
+        Alert.alert(
+          'Not a Vehicle',
+          'The photo does not appear to show a vehicle. Please take a photo of the rental vehicle.',
+          [
+            {
+              text: 'OK',
+              onPress: () => setIsAnalyzing(false),
+            },
+          ]
+        );
+        return;
+      }
+      
+      if (result.sections.length === 0) {
+        Alert.alert(
+          'No Sections Found',
+          'Could not identify vehicle sections. Please try again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => setIsAnalyzing(false),
+            },
+          ]
+        );
+        return;
+      }
+      
       router.push({
         pathname: '/section-list',
         params: {

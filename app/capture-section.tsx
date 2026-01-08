@@ -32,7 +32,7 @@ Return your response in JSON format:
   "damageNotes": "detailed description of any damage, flaws, or issues found. If none, say 'No visible damage or issues found.'"
 }
 
-Return ONLY the JSON object, no other text.`;
+IMPORTANT: Return ONLY the JSON object, no markdown, no code blocks, no additional text. If the image does not show a vehicle section, set "isUsable" to false.`;
 
 interface SectionPhoto {
   section: string;
@@ -353,13 +353,23 @@ export default function CaptureSectionScreen() {
               <Text style={styles.loadingText}>Analyzing...</Text>
             </View>
           ) : (
-            <TouchableOpacity
-              style={styles.captureButton}
-              onPress={handleCapture}
-              disabled={isAnalyzing}
-            >
-              <Camera size={32} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.finishButton}
+                onPress={finishCapture}
+                disabled={isAnalyzing}
+              >
+                <Text style={styles.finishButtonText}>Finish</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.captureButton}
+                onPress={handleCapture}
+                disabled={isAnalyzing}
+              >
+                <Camera size={32} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.buttonSpacer} />
+            </View>
           )}
         </View>
       </SafeAreaView>
@@ -447,6 +457,26 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  finishButton: {
+    backgroundColor: '#2a5a6c',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#4A90A4',
+  },
+  finishButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
   captureButton: {
     width: 80,
     height: 80,
@@ -456,6 +486,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 4,
     borderColor: '#FFFFFF',
+    marginHorizontal: 20,
+  },
+  buttonSpacer: {
+    width: 80,
   },
   loadingContainer: {
     alignItems: 'center',

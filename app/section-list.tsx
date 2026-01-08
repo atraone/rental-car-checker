@@ -52,22 +52,28 @@ export default function SectionListScreen() {
     });
   };
 
-  const renderSection = ({ item, index }: { item: Section; index: number }) => (
-    <View style={[styles.sectionItem, item.completed && styles.sectionItemCompleted]}>
-      <View style={styles.sectionNumber}>
-        <Text style={styles.sectionNumberText}>{index + 1}</Text>
+  const renderSection = ({ item, index }: { item: Section; index: number }) => {
+    if (!item || typeof item !== 'object' || !item.name) {
+      return null;
+    }
+    
+    return (
+      <View style={[styles.sectionItem, item.completed && styles.sectionItemCompleted]}>
+        <View style={styles.sectionNumber}>
+          <Text style={styles.sectionNumberText}>{index + 1}</Text>
+        </View>
+        <Text style={[styles.sectionName, item.completed && styles.sectionNameCompleted]}>
+          {String(item.name)}
+        </Text>
+        {item.completed && (
+          <Check size={20} color="#4A90A4" style={styles.checkIcon} />
+        )}
+        {item.needsRetake && (
+          <Text style={styles.retakeLabel}>Needs Retake</Text>
+        )}
       </View>
-      <Text style={[styles.sectionName, item.completed && styles.sectionNameCompleted]}>
-        {item.name}
-      </Text>
-      {item.completed && (
-        <Check size={20} color="#4A90A4" style={styles.checkIcon} />
-      )}
-      {item.needsRetake && (
-        <Text style={styles.retakeLabel}>Needs Retake</Text>
-      )}
-    </View>
-  );
+    );
+  };
 
   if (sections.length === 0) {
     return (
@@ -92,12 +98,9 @@ export default function SectionListScreen() {
           Please take photos of each section listed below. You'll be guided through each one.
         </Text>
 
-        <FlatList
-          data={sections}
-          renderItem={renderSection}
-          keyExtractor={(item, index) => `${item.name}-${index}`}
-          contentContainerStyle={styles.listContent}
-        />
+        <View style={styles.sectionsList}>
+          {sections.map((section, index) => renderSection({ item: section, index }))}
+        </View>
       </View>
 
       <View style={styles.footer}>
@@ -149,7 +152,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 24,
   },
-  listContent: {
+  sectionsList: {
+    flex: 1,
     paddingBottom: 20,
   },
   sectionItem: {
