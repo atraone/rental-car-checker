@@ -18,8 +18,8 @@ const DEBUG_BYPASS_KEY = 'rental_car_checker_debug_bypass';
 
 interface SubscriptionStatus {
   isActive: boolean;
-  platform?: 'google_play' | 'app_store';
-  expiresAt?: string;
+  // Platform and expiration are handled by app store workflows
+  // We only need to know if subscription is active
 }
 
 interface AuthContextType {
@@ -71,17 +71,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
-    // Listen for auth changes
+    // Listen for auth state changes (per Authentication Integration Guide)
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event);
+      
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        // User signed in successfully
+        // Database trigger automatically creates rental_car_users record
+        await checkSubscription();
+      } else if (event === 'SIGNED_OUT') {
+        // User signed out
+        setSubscription(null);
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        // Token was automatically refreshed
+        await checkSubscription();
+      } else if (session?.user) {
+        // Other events (USER_UPDATED, etc.)
         await checkSubscription();
       } else {
         setSubscription(null);
       }
+      
       setIsLoading(false);
     });
 
@@ -97,46 +112,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Check local storage first
+      // Check local storage first (simple cache with timestamp)
       const stored = await AsyncStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        // Check if subscription is still valid (not expired)
-        if (parsed.expiresAt && new Date(parsed.expiresAt) > new Date()) {
-          setSubscription(parsed);
-          return;
+        try {
+          const parsed = JSON.parse(stored);
+          // Cache is valid for 5 minutes
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000 && parsed.isActive !== undefined) {
+            setSubscription({ isActive: parsed.isActive });
+            return;
+          }
+        } catch (e) {
+          // Invalid cache, continue to fetch
         }
       }
 
-      // Query Supabase for subscription status
-      const { data, error } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single();
+      // Use validateAuth endpoint - returns all we need (no direct DB access)
+      const { validateAuth } = await import('@/services/supabase');
+      const authStatus = await validateAuth();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Error checking subscription:', error);
+      if (authStatus.error) {
+        console.error('Error validating auth:', authStatus.error);
         setSubscription({ isActive: false });
+        await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify({ 
+          isActive: false, 
+          timestamp: Date.now() 
+        }));
         return;
       }
 
-      if (data && data.expires_at && new Date(data.expires_at) > new Date()) {
-        const subStatus: SubscriptionStatus = {
-          isActive: true,
-          platform: data.platform as 'google_play' | 'app_store',
-          expiresAt: data.expires_at,
-        };
-        setSubscription(subStatus);
-        await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(subStatus));
-      } else {
-        setSubscription({ isActive: false });
-        await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify({ isActive: false }));
-      }
+      // User has access if they're a testing user OR have an active subscription
+      const hasAccess = authStatus.isTestingUser || authStatus.hasSubscription;
+      
+      setSubscription({ isActive: hasAccess });
+      await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify({ 
+        isActive: hasAccess,
+        timestamp: Date.now()
+      }));
     } catch (error) {
       console.error('Error checking subscription:', error);
       setSubscription({ isActive: false });
+      await AsyncStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify({ 
+        isActive: false,
+        timestamp: Date.now()
+      }));
     }
   }, [user]);
 
@@ -174,10 +193,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
+      // Note: If email confirmation is enabled in Supabase, session may be null until confirmed
       if (data.session) {
         setSession(data.session);
         setUser(data.session.user);
         await checkSubscription();
+      } else if (data.user) {
+        // User created but needs email confirmation
+        // Database trigger will automatically create rental_car_users record
+        return { error: new Error('Please check your email to confirm your account.') };
       }
 
       return {};
@@ -191,7 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${Constants.expoConfig?.scheme || 'rental-car-checker'}://auth/callback`,
+          redirectTo: 'rental-car-checker://auth/callback',
         },
       });
 
@@ -199,7 +223,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // OAuth flow will complete via deep link
+      // OAuth flow:
+      // 1. User will be redirected to provider (Google/Apple) for authorization
+      // 2. Provider redirects back to app via deep link: rental-car-checker://auth/callback
+      // 3. Supabase automatically handles session creation
+      // 4. onAuthStateChange listener will detect successful login
+      
       return {};
     } catch (error) {
       return { error: error as Error };

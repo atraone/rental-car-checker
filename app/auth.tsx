@@ -172,11 +172,18 @@ export default function AuthScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.socialButton}
+            style={styles.googleButton}
             onPress={() => handleSocialAuth('google')}
             disabled={isLoading}
           >
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            <View style={styles.googleButtonContent}>
+              <View style={styles.googleIcon}>
+                <Text style={styles.googleIconText}>G</Text>
+              </View>
+              <Text style={styles.googleButtonText}>
+                {isLoading ? 'Signing in...' : 'Sign in with Google'}
+              </Text>
+            </View>
           </TouchableOpacity>
 
           {Platform.OS === 'ios' && (
@@ -327,6 +334,46 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DADCE0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIconText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  googleButtonText: {
+    color: '#3C4043',
+    fontSize: 14,
+    fontWeight: '500' as const,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   switchButton: {
     marginTop: 16,

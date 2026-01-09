@@ -1,11 +1,18 @@
 /**
  * Claude API service for text+vision analysis
  * 
- * IMPORTANT: In production, this ALWAYS calls the backend at https://atra.one
- * to ensure API keys are never exposed to the frontend.
+ * IMPORTANT: This calls the backend at https://atra.one/api/rental-car/claude
+ * which requires JWT authentication and validates subscription status.
  * 
- * The backend proxy endpoint handles all external API calls securely.
+ * The backend endpoint:
+ * - Validates user's JWT with Supabase
+ * - Checks for active subscription or testing user status
+ * - Forwards request to Anthropic Claude API
+ * - Returns the text response
  */
+
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
+import { supabase } from '@/lib/supabase';
 
 export interface ClaudeAnalysisInput {
   promptText: string;
@@ -13,16 +20,22 @@ export interface ClaudeAnalysisInput {
   imageMime: string;
 }
 
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
-
 export async function analyzeWithClaude(input: ClaudeAnalysisInput): Promise<string> {
   const baseUrl = getApiBaseUrl();
-  const apiUrl = `${baseUrl}/api/claude`;
+  const apiUrl = `${baseUrl}/api/rental-car/claude`;
+
+  // Get current session for JWT
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError || !session) {
+    throw new Error('User not authenticated');
+  }
 
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({
       promptText: input.promptText,
@@ -44,4 +57,3 @@ export async function analyzeWithClaude(input: ClaudeAnalysisInput): Promise<str
 
   return data.text;
 }
-
