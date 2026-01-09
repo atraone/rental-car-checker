@@ -36,6 +36,13 @@ export interface StoreInspectionRequest {
   mainPhoto: string;
   sectionPhotos: VehicleSectionPhoto[];
   allDamageNotes: string;
+  expectedReturnDate?: number;
+  expectedReturnDateText?: string;
+  afterMainPhoto?: string;
+  afterSectionPhotos?: any[];
+  afterCreatedAt?: number;
+  afterDateText?: string;
+  isReturned?: boolean;
 }
 
 export interface StoreInspectionResponse {
@@ -80,6 +87,13 @@ export async function storeInspectionToSupabase(
         main_photo: data.mainPhoto,
         section_photos: data.sectionPhotos,
         all_damage_notes: data.allDamageNotes,
+        expected_return_date: data.expectedReturnDate ? new Date(data.expectedReturnDate).toISOString() : null,
+        expected_return_date_text: data.expectedReturnDateText,
+        after_main_photo: data.afterMainPhoto,
+        after_section_photos: data.afterSectionPhotos,
+        after_created_at: data.afterCreatedAt ? new Date(data.afterCreatedAt).toISOString() : null,
+        after_date_text: data.afterDateText,
+        is_returned: data.isReturned || false,
       }),
     });
 
@@ -139,6 +153,13 @@ export async function fetchInspectionsFromSupabase(): Promise<HistoryItem[]> {
       allDamageNotes: inspection.all_damage_notes || '',
       createdAt: new Date(inspection.created_at).getTime(),
       dateText: formatDateText(new Date(inspection.created_at)),
+      expectedReturnDate: inspection.expected_return_date ? new Date(inspection.expected_return_date).getTime() : undefined,
+      expectedReturnDateText: inspection.expected_return_date_text,
+      afterMainPhoto: inspection.after_main_photo,
+      afterSectionPhotos: inspection.after_section_photos || [],
+      afterCreatedAt: inspection.after_created_at ? new Date(inspection.after_created_at).getTime() : undefined,
+      afterDateText: inspection.after_date_text,
+      isReturned: inspection.is_returned || false,
     }));
   } catch (error) {
     console.error('Error fetching inspections from Supabase:', error);

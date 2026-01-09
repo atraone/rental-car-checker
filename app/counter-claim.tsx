@@ -494,6 +494,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     backgroundColor: '#3a6a7c',
+    resizeMode: 'cover',
   },
   historyInfo: {
     flex: 1,
@@ -530,6 +531,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 12,
     marginBottom: 12,
+    resizeMode: 'cover',
   },
   summaryDate: {
     color: '#FFFFFF',

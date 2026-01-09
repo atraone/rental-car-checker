@@ -18,9 +18,12 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" />
       <Stack.Screen name="index" />
       <Stack.Screen name="capture-initial" />
+      <Stack.Screen name="capture-after-initial" />
       <Stack.Screen name="section-list" />
       <Stack.Screen name="capture-section" />
+      <Stack.Screen name="capture-after-section" />
       <Stack.Screen name="results" />
+      <Stack.Screen name="results-after" />
       <Stack.Screen name="counter-claim" />
       <Stack.Screen 
         name="privacy-policy" 

@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,9 +19,11 @@ interface Section {
 
 export default function SectionListScreen() {
   const router = useRouter();
-  const { mainPhoto, sections: sectionsParam } = useLocalSearchParams<{
+  const { mainPhoto, sections: sectionsParam, isAfter, historyId } = useLocalSearchParams<{
     mainPhoto: string;
     sections: string;
+    isAfter?: string;
+    historyId?: string;
   }>();
   
   const [sections, setSections] = useState<Section[]>([]);
@@ -47,12 +49,15 @@ export default function SectionListScreen() {
   const handleStartCapture = () => {
     if (sections.length === 0) return;
     
+    const isAfterFlow = isAfter === 'true';
     router.push({
-      pathname: '/capture-section',
+      pathname: isAfterFlow ? '/capture-after-section' : '/capture-section',
       params: {
         mainPhoto: mainPhoto || '',
-        sections: JSON.stringify(sections),
+        sections: JSON.stringify(sections.map(s => s.name)),
         currentIndex: '0',
+        historyId: historyId || '',
+        isAfter: isAfter || 'false',
       },
     });
   };
@@ -100,12 +105,18 @@ export default function SectionListScreen() {
 
       <View style={styles.content}>
         <Text style={styles.instruction}>
-          Please take photos of each section listed below. You'll be guided through each one.
+          {isAfter === 'true' 
+            ? 'Please take photos of each section for return inspection. No damage analysis will be performed.'
+            : 'Please take photos of each section listed below. You\'ll be guided through each one.'}
         </Text>
 
-        <View style={styles.sectionsList}>
+        <ScrollView 
+          style={styles.sectionsList}
+          contentContainerStyle={styles.sectionsListContent}
+          showsVerticalScrollIndicator={true}
+        >
           {sections.map((section, index) => renderSection({ item: section, index }))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.footer}>
@@ -159,6 +170,8 @@ const styles = StyleSheet.create({
   },
   sectionsList: {
     flex: 1,
+  },
+  sectionsListContent: {
     paddingBottom: 20,
   },
   sectionItem: {

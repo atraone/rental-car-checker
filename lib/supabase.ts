@@ -68,3 +68,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  *   - Returns stored inspection ID
  */
 
+

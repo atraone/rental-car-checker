@@ -438,3 +438,4 @@ To test the integration:
    - Check `is_active` and `expires_at` fields
    - Ensure user_id matches authenticated user
 
+

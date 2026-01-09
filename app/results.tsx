@@ -12,10 +12,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { X, Save, Plus } from 'lucide-react-native';
+import { X, Save, Plus, Calendar } from 'lucide-react-native';
 import { useHistory } from '@/contexts/HistoryContext';
 import { VehicleSectionPhoto } from '@/contexts/HistoryContext';
 import { storeInspectionToSupabase } from '@/services/supabase';
+import { scheduleReturnReminder } from '@/services/notifications';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 
@@ -38,6 +39,8 @@ export default function ResultsScreen() {
   const [damageNotes, setDamageNotes] = useState<DamageNote[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [mainPhotoUri, setMainPhotoUri] = useState<string>('');
+  const [expectedReturnDate, setExpectedReturnDate] = useState<Date | null>(null);
+  const [dateInputText, setDateInputText] = useState('');
 
   useEffect(() => {
     if (historyId) {
@@ -133,11 +136,26 @@ export default function ResultsScreen() {
         finalMainPhoto = mainPhotoUri;
       }
 
+      // Format expected return date if provided
+      let expectedReturnDateTimestamp: number | undefined;
+      let expectedReturnDateText: string | undefined;
+      if (expectedReturnDate) {
+        expectedReturnDateTimestamp = expectedReturnDate.getTime();
+        expectedReturnDateText = expectedReturnDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+      }
+
       // Save to local history
       const historyId = await addToHistory({
         mainPhoto: finalMainPhoto,
         sectionPhotos: sectionPhotos,
         allDamageNotes: combinedNotes,
+        expectedReturnDate: expectedReturnDateTimestamp,
+        expectedReturnDateText,
       });
 
       // Save to Supabase (async, non-blocking)
@@ -145,6 +163,8 @@ export default function ResultsScreen() {
         mainPhoto: finalMainPhoto,
         sectionPhotos: sectionPhotos,
         allDamageNotes: combinedNotes,
+        expectedReturnDate: expectedReturnDateTimestamp,
+        expectedReturnDateText,
       }).then(result => {
         if (result.success) {
           console.log('Inspection saved to Supabase:', result.inspectionId);
@@ -153,6 +173,20 @@ export default function ResultsScreen() {
           // Don't show error to user - local save succeeded
         }
       });
+
+      // Schedule notification for return date if provided
+      if (expectedReturnDate && expectedReturnDate.getTime() > Date.now()) {
+        scheduleReturnReminder(historyId, expectedReturnDate, new Date().toLocaleDateString())
+          .then(notificationId => {
+            if (notificationId) {
+              console.log('Return reminder scheduled:', notificationId);
+            }
+          })
+          .catch(error => {
+            console.error('Failed to schedule return reminder:', error);
+            // Don't show error to user - inspection saved successfully
+          });
+      }
 
       Alert.alert('Success', 'Inspection saved to history', [
         {
@@ -235,6 +269,69 @@ export default function ResultsScreen() {
             ))}
           </ScrollView>
         </View>
+
+        {/* Expected Return Date (Optional) */}
+        {!historyId && (
+          <View style={styles.returnDateSection}>
+            <Text style={styles.sectionTitle}>Expected Return Date (Optional)</Text>
+            <View style={styles.dateInputContainer}>
+              <Calendar size={20} color="#4A90A4" />
+              <TextInput
+                style={styles.dateInput}
+                placeholder="YYYY-MM-DD (Optional)"
+                placeholderTextColor="#7AB8CC"
+                value={dateInputText}
+                onChangeText={(text) => {
+                  setDateInputText(text);
+                  if (text.trim()) {
+                    // Try parsing as YYYY-MM-DD
+                    const dateMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                    if (dateMatch) {
+                      const date = new Date(parseInt(dateMatch[1]), parseInt(dateMatch[2]) - 1, parseInt(dateMatch[3]));
+                      if (!isNaN(date.getTime())) {
+                        setExpectedReturnDate(date);
+                      } else {
+                        setExpectedReturnDate(null);
+                      }
+                    } else {
+                      // Try parsing as general date string
+                      const date = new Date(text);
+                      if (!isNaN(date.getTime()) && text.length > 5) {
+                        setExpectedReturnDate(date);
+                      } else {
+                        setExpectedReturnDate(null);
+                      }
+                    }
+                  } else {
+                    setExpectedReturnDate(null);
+                  }
+                }}
+                keyboardType="default"
+              />
+              {expectedReturnDate && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setExpectedReturnDate(null);
+                    setDateInputText('');
+                  }}
+                  style={styles.clearDateButton}
+                >
+                  <X size={16} color="#FF6B6B" />
+                </TouchableOpacity>
+              )}
+            </View>
+            {expectedReturnDate && (
+              <Text style={styles.datePreviewText}>
+                Return date: {expectedReturnDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Damage Notes */}
         <View style={styles.notesSection}>
@@ -335,6 +432,7 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 12,
     backgroundColor: '#2a5a6c',
+    resizeMode: 'cover',
   },
   photosSection: {
     marginBottom: 32,
@@ -357,6 +455,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 8,
     backgroundColor: '#2a5a6c',
+    resizeMode: 'cover',
   },
   removePhotoButton: {
     position: 'absolute',
@@ -423,6 +522,31 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  returnDateSection: {
+    marginBottom: 32,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a5a6c',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  dateInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  datePreviewText: {
+    color: '#7AB8CC',
+    fontSize: 14,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  clearDateButton: {
+    padding: 4,
   },
 });
 

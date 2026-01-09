@@ -10,11 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Camera, ArrowLeft } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { analyzeWithClaude } from '@/services/claude';
 
-const INITIAL_PHOTO_PROMPT = `You are a vehicle inspection assistant. Analyze this photo to determine if it shows a rental vehicle and identify which sections need to be documented.
+const INITIAL_PHOTO_PROMPT = `You are a vehicle inspection assistant. Analyze this photo to determine if it shows a rental vehicle and identify which sections need to be documented for RETURN inspection.
 
 IMPORTANT: You MUST return a valid JSON object in this exact format:
 {
@@ -23,7 +23,7 @@ IMPORTANT: You MUST return a valid JSON object in this exact format:
 }
 
 Rules:
-1. If the image does NOT show a vehicle (e.g., shows a person, animal, landscape, or other non-vehicle object), set "isVehicle" to false and "sections" to an empty array.
+1. If the image does NOT show a vehicle, set "isVehicle" to false and "sections" to an empty array.
 2. If the image DOES show a vehicle, set "isVehicle" to true and provide a JSON array of section names in a natural walk-around sequence.
 3. Arrange sections in a logical order for photographing (e.g., Front → Driver Side → Back → Passenger Side → Front Wheel → Driver Rear Wheel → Passenger Front Wheel → Passenger Rear Wheel → Interior Front → Interior Back).
 4. Sections should be broad categories covering all major areas: Front, Back, Driver Side, Passenger Side, Wheels (or individual wheels), Interior Front, Interior Back, etc.
@@ -35,10 +35,11 @@ Example for a vehicle:
 Example for non-vehicle:
 {"isVehicle": false, "sections": []}`;
 
-export default function CaptureInitialScreen() {
+export default function CaptureAfterInitialScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const router = useRouter();
+  const { historyId } = useLocalSearchParams<{ historyId: string }>();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const analysisMutation = useMutation({
@@ -54,36 +55,26 @@ export default function CaptureInitialScreen() {
         imageMime: photoMime,
       });
 
-      // Parse the JSON response
-      // The response may be double-encoded: {"text":"{\"isVehicle\": false, \"sections\": []}"}
       let sections: string[] = [];
       let isVehicle = true;
       
       try {
-        // Remove markdown code blocks if present
         let cleaned = analysisText.trim();
         cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         
-        // Try to parse - it might be a JSON string that needs to be parsed again
         let parsed: any;
-        
-        // First, try to parse as JSON (in case it's double-encoded)
         try {
           parsed = JSON.parse(cleaned);
-          // If the result is a string, parse it again (double-encoded case)
           if (typeof parsed === 'string') {
             parsed = JSON.parse(parsed);
           }
-          // If the result has a 'text' property, extract and parse that
           if (parsed && typeof parsed === 'object' && parsed.text && typeof parsed.text === 'string') {
             parsed = JSON.parse(parsed.text);
           }
         } catch (e) {
-          // If that fails, try to extract JSON object from the string
           const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             parsed = JSON.parse(jsonMatch[0]);
-            // Check if it's still a string (double-encoded)
             if (typeof parsed === 'string') {
               parsed = JSON.parse(parsed);
             }
@@ -92,9 +83,7 @@ export default function CaptureInitialScreen() {
           }
         }
         
-        // Now we should have the actual parsed object
         if (parsed && typeof parsed === 'object') {
-          // Check if it's a vehicle
           if (parsed.isVehicle === false) {
             isVehicle = false;
             sections = [];
@@ -102,19 +91,17 @@ export default function CaptureInitialScreen() {
             sections = parsed.sections;
             isVehicle = true;
           } else {
-            throw new Error('Invalid response format - missing isVehicle or sections');
+            throw new Error('Invalid response format');
           }
         } else {
           throw new Error('Response is not a valid object');
         }
         
-        // Validate sections array
         if (isVehicle && (!Array.isArray(sections) || sections.length === 0)) {
           throw new Error('Invalid sections array');
         }
       } catch (error) {
         console.error('Failed to parse sections:', error, 'Raw response:', analysisText);
-        // If parsing fails, check if response indicates "not a vehicle"
         const lowerText = analysisText.toLowerCase();
         if (lowerText.includes("don't see") || lowerText.includes("not a vehicle") || 
             lowerText.includes("not a car") || lowerText.includes("no vehicle") ||
@@ -122,7 +109,6 @@ export default function CaptureInitialScreen() {
           isVehicle = false;
           sections = [];
         } else {
-          // Fallback to default sections only if we can't determine it's not a vehicle
           sections = ['Front', 'Back', 'Driver Side', 'Passenger Side', 'Wheels', 'Interior Front', 'Interior Back'];
         }
       }
@@ -141,7 +127,6 @@ export default function CaptureInitialScreen() {
               text: 'Retake Photo',
               style: 'default',
               onPress: () => {
-                // User stays on the camera screen and can retake
                 setIsAnalyzing(false);
               },
             },
@@ -173,6 +158,8 @@ export default function CaptureInitialScreen() {
         params: {
           mainPhoto: result.photoDataUri,
           sections: JSON.stringify(result.sections),
+          isAfter: 'true',
+          historyId: historyId || '',
         },
       });
     },
@@ -194,7 +181,6 @@ export default function CaptureInitialScreen() {
       });
       
       if (photo?.base64 && photo?.uri) {
-        // Detect MIME type
         let mimeType = 'image/jpeg';
         try {
           const imageData = atob(photo.base64);
@@ -212,7 +198,6 @@ export default function CaptureInitialScreen() {
           console.warn('Could not detect MIME type:', error);
         }
         
-        // Create data URI for storage and display
         const cleanBase64 = photo.base64.startsWith('data:')
           ? photo.base64.split(',')[1] || photo.base64
           : photo.base64;
@@ -246,7 +231,7 @@ export default function CaptureInitialScreen() {
         <View style={styles.permissionContainer}>
           <Text style={styles.permissionTitle}>Camera Access Required</Text>
           <Text style={styles.permissionText}>
-            Rental Car Checker needs access to your camera to document the vehicle.
+            Rental Car Checker needs access to your camera to document the vehicle return.
           </Text>
           <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
             <Text style={styles.permissionButtonText}>Grant Permission</Text>
@@ -263,7 +248,7 @@ export default function CaptureInitialScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.title}>Capture Vehicle</Text>
+          <Text style={styles.title}>Return Inspection</Text>
           <View style={styles.headerSpacer} />
         </View>
       </SafeAreaView>
@@ -278,6 +263,9 @@ export default function CaptureInitialScreen() {
           <View style={styles.instructionContainer}>
             <Text style={styles.instructionText}>
               Position the entire vehicle in frame
+            </Text>
+            <Text style={styles.subInstructionText}>
+              This is for return inspection - no damage analysis needed
             </Text>
           </View>
         </View>
@@ -357,6 +345,13 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     textAlign: 'center',
     lineHeight: 28,
+    marginBottom: 8,
+  },
+  subInstructionText: {
+    color: '#7AB8CC',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   bottomArea: {
     position: 'absolute',
@@ -421,4 +416,5 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
   },
 });
+
 

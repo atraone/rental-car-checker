@@ -13,13 +13,27 @@ export interface VehicleSectionPhoto {
   needsRetake?: boolean;
 }
 
+export interface AfterSectionPhoto {
+  section: string;
+  photoUri: string;
+  // No damage notes for after photos
+}
+
 export interface HistoryItem {
   id: string;
-  mainPhoto: string; // Initial whole vehicle photo
-  sectionPhotos: VehicleSectionPhoto[]; // All section photos with damage notes
-  allDamageNotes: string; // Combined damage notes text
+  mainPhoto: string; // Initial whole vehicle photo (before)
+  sectionPhotos: VehicleSectionPhoto[]; // All section photos with damage notes (before)
+  allDamageNotes: string; // Combined damage notes text (before only)
   createdAt: number;
   dateText: string; // Formatted date/time/day
+  expectedReturnDate?: number; // Optional expected return date timestamp
+  expectedReturnDateText?: string; // Formatted expected return date
+  // After photos (return inspection)
+  afterMainPhoto?: string; // Return vehicle photo
+  afterSectionPhotos?: AfterSectionPhoto[]; // Return section photos (no damage notes)
+  afterCreatedAt?: number; // When return photos were taken
+  afterDateText?: string; // Formatted return date
+  isReturned?: boolean; // Flag to indicate if return photos have been taken
 }
 
 const HISTORY_STORAGE_KEY = 'rental_car_checker_history';
@@ -221,6 +235,9 @@ export const [HistoryProvider, useHistory] = createContextHook(() => {
       id: now.toString(),
       createdAt: now,
       dateText,
+      expectedReturnDate: item.expectedReturnDate,
+      expectedReturnDateText: item.expectedReturnDateText,
+      isReturned: false, // New inspections are not returned yet
     };
     
     // Limit history to last 20 items to prevent quota issues
@@ -249,6 +266,16 @@ export const [HistoryProvider, useHistory] = createContextHook(() => {
     return history.find(item => item.id === id);
   }, [history]);
 
+  const updateHistoryItem = useCallback(async (id: string, updates: Partial<HistoryItem>) => {
+    setHistory(prev => {
+      const updated = prev.map(item => 
+        item.id === id ? { ...item, ...updates } : item
+      );
+      saveHistory(updated);
+      return updated;
+    });
+  }, []);
+
   return {
     history,
     isLoading,
@@ -256,5 +283,6 @@ export const [HistoryProvider, useHistory] = createContextHook(() => {
     deleteFromHistory,
     clearHistory,
     getHistoryItem,
+    updateHistoryItem,
   };
 });
