@@ -57,14 +57,14 @@ async function generateIcon() {
   const baseImageDataUri = `data:image/svg+xml;base64,${base64Svg}`;
   
   // Prompt for Kie.ai to transform into a professional vanity mirror icon
-  const prompt = `Transform this into a professional app store icon for a vanity mirror makeup app. Create a beautiful vanity mirror with:
+  const prompt = `Transform this into a professional app store icon for a rental car inspection app. Create a professional vehicle inspection icon with:
 
 - Dark elegant background color ${COLORS.background} (deep purple-black)
 - Ornate vintage-style mirror frame in dark brown/black tones (${COLORS.frameDark}, ${COLORS.frameBorder})
 - Pink/mauve vanity lights around the frame edges (${COLORS.primaryPink}, ${COLORS.secondaryPink}, ${COLORS.tertiaryPink}) - these should glow softly
 - A blank, reflective glass mirror pane in the center - should look like clean glass, slightly reflective but empty/blank
 - Soft yellow-gold spotlight lighting from the upper-left corner (${COLORS.yellowSpotlight}) creating a warm, flattering glow
-- Professional, polished, elegant aesthetic suitable for a beauty/makeup app
+- Professional, polished, clean aesthetic suitable for a vehicle inspection app
 - App store icon style: clean, recognizable, works at small sizes
 - Square format, 512x512 pixels
 - The mirror should be the focal point, with the lights creating a glamorous vanity mirror atmosphere

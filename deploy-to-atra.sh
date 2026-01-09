@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Deploying Rork Makeup Check Backend to atra.one"
+echo "🚀 Deploying Rental Car Checker Backend to atra.one"
 
 # Configuration
 SERVER_USER="ubuntu"
 SERVER_HOST="atra.one"
-DEPLOY_PATH="/home/ubuntu/rork-makeup-check-app"
-SERVICE_NAME="rork-makeup-backend"
+DEPLOY_PATH="/home/ubuntu/rental-car-checker"
+SERVICE_NAME="rental-car-checker-backend"
 
 # Colors
 GREEN='\033[0;32m'
@@ -22,7 +22,7 @@ rsync -av --exclude='node_modules' --exclude='deploy-package' --exclude='.git' \
 cp .env deploy-package/.env
 cp package.json deploy-package/
 cp bun.lockb deploy-package/ 2>/dev/null || true
-cp rork-makeup-backend.service deploy-package/
+cp rental-car-checker-backend.service deploy-package/
 
 echo -e "${BLUE}📤 Step 2: Uploading to server...${NC}"
 ssh ${SERVER_USER}@${SERVER_HOST} "mkdir -p ${DEPLOY_PATH}"
@@ -49,11 +49,11 @@ ENDSSH
 echo -e "${BLUE}⚙️  Step 5: Setting up systemd service...${NC}"
 ssh ${SERVER_USER}@${SERVER_HOST} << ENDSSH
 # Update paths in service file for production
-sed -i "s|/home/ubuntu/rork-makeup-check-app|${DEPLOY_PATH}|g" ${DEPLOY_PATH}/rork-makeup-backend.service
-sed -i "s|User=ubuntu|User=${SERVER_USER}|g" ${DEPLOY_PATH}/rork-makeup-backend.service
+sed -i "s|/home/ubuntu/rental-car-checker|${DEPLOY_PATH}|g" ${DEPLOY_PATH}/rental-car-checker-backend.service
+sed -i "s|User=ubuntu|User=${SERVER_USER}|g" ${DEPLOY_PATH}/rental-car-checker-backend.service
 
 # Install service
-sudo cp ${DEPLOY_PATH}/rork-makeup-backend.service /etc/systemd/system/
+sudo cp ${DEPLOY_PATH}/rental-car-checker-backend.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable ${SERVICE_NAME}
 sudo systemctl restart ${SERVICE_NAME}

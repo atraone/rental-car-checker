@@ -22,7 +22,7 @@ async function generateIcon() {
   const baseImageDataUri = `data:image/png;base64,${minimalPngBase64}`;
   
   // Detailed prompt for Kie.ai to create the vanity mirror icon
-  const prompt = `Create a professional app store icon (512x512 pixels, square) for a vanity mirror makeup app. The icon should feature:
+  const prompt = `Create a professional app store icon (512x512 pixels, square) for a rental car inspection app. The icon should feature:
 
 VISUAL DESIGN:
 - A beautiful vintage-style vanity mirror as the central element
@@ -34,7 +34,7 @@ VISUAL DESIGN:
 - The spotlight should be subtle but visible, creating depth and dimension
 
 STYLE REQUIREMENTS:
-- Professional, polished, elegant aesthetic suitable for a beauty/makeup app
+- Professional, polished, clean aesthetic suitable for a vehicle inspection app
 - App store icon style: clean, recognizable, works at small sizes (must be clear even at 48x48)
 - The mirror should be the focal point, with the lights creating a glamorous vanity mirror atmosphere
 - Subtle reflections and depth to make it look three-dimensional
